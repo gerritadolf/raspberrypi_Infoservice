@@ -25,7 +25,9 @@ import dbus
 
 from advertisement import Advertisement
 from service import Application, Service, Characteristic, Descriptor
+from datetime import datetime
 from gpiozero import CPUTemperature
+import subprocess
 
 GATT_CHRC_IFACE = "org.bluez.GattCharacteristic1"
 NOTIFY_TIMEOUT = 5000
@@ -133,18 +135,25 @@ class UnitCharacteristic(Characteristic):
         self.add_descriptor(UnitDescriptor(self))
 
     def WriteValue(self, value, options):
-        val = str(value[0]).upper()
-        if val == "C":
-            self.service.set_farenheit(False)
-        elif val == "F":
-            self.service.set_farenheit(True)
+        val = ""
+        for c in value:
+            val += str(c)
+
+        # Format value to date and set to system date
+        formatted_date = datetime.strptime(val, "%d.%m.%Y %H:%M:%S")
+        formatted_date_str = formatted_date.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Set system time and date using subprocess
+        subprocess.run(["sudo", "date", "-s", formatted_date_str])
+        print("SET date to: " + formatted_date_str)
 
     def ReadValue(self, options):
         value = []
-
-        if self.service.is_farenheit(): val = "F"
-        else: val = "C"
-        value.append(dbus.Byte(val.encode()))
+        print("READ")
+        val = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+        print(val)
+        for c in val:
+            value.append(dbus.Byte(c.encode()))
 
         return value
 
